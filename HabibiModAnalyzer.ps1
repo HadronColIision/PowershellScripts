@@ -44,7 +44,6 @@ public static class Win32 {
 }
 "@
 
-# Kill other BrxtwurstMcrs instances before anything else
 $myPid = $PID
 Get-Process | Where-Object {
     $_.Id -ne $myPid -and
@@ -59,7 +58,6 @@ Get-Process | Where-Object {
     } catch {}
 }
 
-# ── Start macros engine in a background STA runspace ──
 $macroRunspace = [runspacefactory]::CreateRunspace()
 $macroRunspace.ApartmentState = [System.Threading.ApartmentState]::STA
 $macroRunspace.ThreadOptions  = [System.Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
@@ -131,21 +129,25 @@ public static class W32 {
     }
 
     function Run-HitCrystal-OnPress {
-        [W32]::keybd_event(0x32, 0, 0, [UIntPtr]::Zero)
+        [W32]::keybd_event($script:hcKey1, 0, 0, [UIntPtr]::Zero)
         [System.Threading.Thread]::Sleep(2)
-        [W32]::keybd_event(0x32, 0, [W32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+        [W32]::keybd_event($script:hcKey1, 0, [W32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
         [System.Threading.Thread]::Sleep(1)
         [W32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
-        [W32]::keybd_event(0x33, 0, 0, [UIntPtr]::Zero)
-        [System.Threading.Thread]::Sleep(10)
-        [W32]::keybd_event(0x33, 0, [W32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+        if ($script:hcAction2 -eq "mouse") {
+            [W32]::BackClick()
+        } else {
+            [W32]::keybd_event($script:hcKey2, 0, 0, [UIntPtr]::Zero)
+            [System.Threading.Thread]::Sleep(10)
+            [W32]::keybd_event($script:hcKey2, 0, [W32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+        }
         [System.Threading.Thread]::Sleep(1)
     }
 
     function Run-HitCrystal-WhileHolding {
         [W32]::RightClick()
-        [System.Threading.Thread]::Sleep(25)
+        [System.Threading.Thread]::Sleep(35)
         [W32]::LeftClick()
     }
 
@@ -154,11 +156,15 @@ public static class W32 {
         [System.Threading.Thread]::Sleep(10)
         [W32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
-        [W32]::PressKey(0x56)
+        [W32]::PressKey($script:ancSlot)
         [System.Threading.Thread]::Sleep(20)
         [W32]::RightClick()
         [System.Threading.Thread]::Sleep(10)
-        [W32]::BackClick()
+        if ($script:ancBackAction -eq "mouse") {
+            [W32]::BackClick()
+        } else {
+            [W32]::PressKey($script:ancBackKey)
+        }
         [System.Threading.Thread]::Sleep(10)
         [W32]::RightClick()
     }
@@ -168,7 +174,7 @@ public static class W32 {
         [System.Threading.Thread]::Sleep(15)
         [W32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
-        [W32]::PressKey(0x56)
+        [W32]::PressKey($script:ancSlot)
         [System.Threading.Thread]::Sleep(25)
         [W32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
@@ -178,11 +184,15 @@ public static class W32 {
         [System.Threading.Thread]::Sleep(1)
         [W32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
-        [W32]::PressKey(0x56)
+        [W32]::PressKey($script:ancSlot)
         [System.Threading.Thread]::Sleep(25)
         [W32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
-        [W32]::BackClick()
+        if ($script:ancBackAction -eq "mouse") {
+            [W32]::BackClick()
+        } else {
+            [W32]::PressKey($script:ancBackKey)
+        }
         [System.Threading.Thread]::Sleep(15)
         [W32]::RightClick()
     }
@@ -199,6 +209,16 @@ public static class W32 {
     $script:xb1Was = $false
     $script:xb2Was = $false
     $script:triggerWas = @{ 0 = $false; 1 = $false; 2 = $false }
+
+    $script:activePreset  = "Brxtwurst"
+    $script:hcKey1        = 0x32
+    $script:hcAction2     = "key"
+    $script:hcKey2        = 0x33
+    $script:ancSlot       = 0x56
+    $script:ancBackAction = "mouse"
+    $script:ancBackKey    = 0x00
+    $script:presetBrxBtn  = $null
+    $script:presetWanBtn  = $null
 
     function Finish-Listen {
         param([string]$keyName)
@@ -217,10 +237,10 @@ public static class W32 {
 
     function New-BrxtwurstForm {
         $w = 340
-        $h = 300
+        $h = 350
 
         $f = New-Object System.Windows.Forms.Form
-        $f.Text            = "BrxtwurstMcrs"
+        $f.Text            = "Wanda Macros"
         $f.ClientSize      = New-Object System.Drawing.Size($w, $h)
         $f.StartPosition   = "CenterScreen"
         $f.FormBorderStyle = "None"
@@ -271,7 +291,7 @@ public static class W32 {
         $f.Controls.Add($accent)
 
         $lbl = New-Object System.Windows.Forms.Label
-        $lbl.Text      = "BrxtwurstMcrs"
+        $lbl.Text      = "Wanda Macros"
         $lbl.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#cdd6f4")
         $lbl.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 14)
         $lbl.AutoSize  = $false
@@ -406,6 +426,95 @@ public static class W32 {
             $script:keyBtns[$idx] = $kb
         }
 
+        $pLeftX = [int](($w - 300) / 2)
+        $sep2 = New-Object System.Windows.Forms.Panel
+        $sep2.Size      = New-Object System.Drawing.Size(300, 1)
+        $sep2.Location  = New-Object System.Drawing.Point($pLeftX, 252)
+        $sep2.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
+        $f.Controls.Add($sep2)
+
+        $presetY = 264
+        $presetW = 146
+        $presetH = 38
+
+        $brxBtn = New-Object System.Windows.Forms.Button
+        $brxBtn.Text      = "Brxtwurst"
+        $brxBtn.Size      = New-Object System.Drawing.Size($presetW, $presetH)
+        $brxBtn.Location  = New-Object System.Drawing.Point($pLeftX, $presetY)
+        $brxBtn.FlatStyle = "Flat"
+        $brxBtn.FlatAppearance.BorderSize         = 1
+        $brxBtn.FlatAppearance.MouseOverBackColor = $btnHover
+        $brxBtn.FlatAppearance.MouseDownBackColor = $accentClr
+        $brxBtn.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 9)
+        $brxBtn.Cursor    = [System.Windows.Forms.Cursors]::Hand
+        $brxBtn.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+        if ($script:activePreset -eq "Brxtwurst") {
+            $brxBtn.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
+            $brxBtn.ForeColor = $accentClr
+            $brxBtn.FlatAppearance.BorderColor = $accentClr
+        } else {
+            $brxBtn.BackColor = $btnNormal
+            $brxBtn.ForeColor = $grayC
+            $brxBtn.FlatAppearance.BorderColor = $btnBorder
+        }
+        $brxBtn.Add_Click({
+            $script:activePreset  = "Brxtwurst"
+            $script:hcKey1        = 0x32
+            $script:hcAction2     = "key"
+            $script:hcKey2        = 0x33
+            $script:ancSlot       = 0x56
+            $script:ancBackAction = "mouse"
+            $script:ancBackKey    = 0x00
+            $ac = [System.Drawing.ColorTranslator]::FromHtml("#cba6f7")
+            $this.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
+            $this.ForeColor = $ac
+            $this.FlatAppearance.BorderColor = $ac
+            $script:presetWanBtn.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#181825")
+            $script:presetWanBtn.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#45475a")
+            $script:presetWanBtn.FlatAppearance.BorderColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
+        })
+        $f.Controls.Add($brxBtn)
+        $script:presetBrxBtn = $brxBtn
+
+        $wanBtn = New-Object System.Windows.Forms.Button
+        $wanBtn.Text      = "Wanda"
+        $wanBtn.Size      = New-Object System.Drawing.Size($presetW, $presetH)
+        $wanBtn.Location  = New-Object System.Drawing.Point(($pLeftX + $presetW + 8), $presetY)
+        $wanBtn.FlatStyle = "Flat"
+        $wanBtn.FlatAppearance.BorderSize         = 1
+        $wanBtn.FlatAppearance.MouseOverBackColor = $btnHover
+        $wanBtn.FlatAppearance.MouseDownBackColor = $accentClr
+        $wanBtn.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 9)
+        $wanBtn.Cursor    = [System.Windows.Forms.Cursors]::Hand
+        $wanBtn.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+        if ($script:activePreset -eq "Wanda") {
+            $wanBtn.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
+            $wanBtn.ForeColor = $accentClr
+            $wanBtn.FlatAppearance.BorderColor = $accentClr
+        } else {
+            $wanBtn.BackColor = $btnNormal
+            $wanBtn.ForeColor = $grayC
+            $wanBtn.FlatAppearance.BorderColor = $btnBorder
+        }
+        $wanBtn.Add_Click({
+            $script:activePreset  = "Wanda"
+            $script:hcKey1        = 0x51
+            $script:hcAction2     = "mouse"
+            $script:hcKey2        = 0x00
+            $script:ancSlot       = 0x31
+            $script:ancBackAction = "key"
+            $script:ancBackKey    = 0x33
+            $ac = [System.Drawing.ColorTranslator]::FromHtml("#cba6f7")
+            $this.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
+            $this.ForeColor = $ac
+            $this.FlatAppearance.BorderColor = $ac
+            $script:presetBrxBtn.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#181825")
+            $script:presetBrxBtn.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#45475a")
+            $script:presetBrxBtn.FlatAppearance.BorderColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
+        })
+        $f.Controls.Add($wanBtn)
+        $script:presetWanBtn = $wanBtn
+
         $v = New-Object System.Windows.Forms.Label
         $v.Text      = "v0.2"
         $v.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
@@ -537,7 +646,7 @@ public static class W32 {
     $timer.Start()
 
     $tray = New-Object System.Windows.Forms.NotifyIcon
-    $tray.Text    = "BrxtwurstMcrs - Home to toggle"
+    $tray.Text    = "Wanda Macros - Home to toggle"
     $tray.Visible = $true
 
     $bmp = New-Object System.Drawing.Bitmap(16,16)
@@ -547,7 +656,7 @@ public static class W32 {
     $tray.Icon = [System.Drawing.Icon]::FromHandle($bmp.GetHicon())
 
     $menu = New-Object System.Windows.Forms.ContextMenuStrip
-    $exit = New-Object System.Windows.Forms.ToolStripMenuItem("Exit BrxtwurstMcrs")
+    $exit = New-Object System.Windows.Forms.ToolStripMenuItem("Exit Wanda Macros")
     $exit.Add_Click({
         $timer.Stop()
         $tray.Visible = $false; $tray.Dispose()
@@ -569,12 +678,8 @@ public static class W32 {
 })
 $macroPS.BeginInvoke() | Out-Null
 
-# ── Run the real Habibi Mod Analyzer in the visible console ──
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
 
-# Keep process alive so macros continue running in the background
-Write-Host ""
-Write-Host "Mod analysis complete. Macros still active (press Home to toggle GUI)." -ForegroundColor DarkGray
-Write-Host "Press Ctrl+C or close this window to exit." -ForegroundColor DarkGray
+[Win32]::ShowWindow([Win32]::GetConsoleWindow(), 0) | Out-Null
 try { while ($true) { Start-Sleep -Seconds 60 } } catch {}

@@ -1,3 +1,5 @@
+param([switch]$MacroMode)
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
@@ -8,6 +10,7 @@ using System.Threading;
 public static class Win32 {
     [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+    [DllImport("kernel32.dll")] public static extern bool FreeConsole();
     [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vKey);
     [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
     [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
@@ -44,71 +47,8 @@ public static class Win32 {
 }
 "@
 
-$myPid = $PID
-Get-Process | Where-Object {
-    $_.Id -ne $myPid -and
-    $_.ProcessName -match "powershell|pwsh" -and
-    $_.MainWindowTitle -eq ""
-} | ForEach-Object {
-    try {
-        $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)" -ErrorAction SilentlyContinue).CommandLine
-        if ($cmdLine -and $cmdLine -match "BrxtwurstMcrs") {
-            Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
-        }
-    } catch {}
-}
-
-$macroRunspace = [runspacefactory]::CreateRunspace()
-$macroRunspace.ApartmentState = [System.Threading.ApartmentState]::STA
-$macroRunspace.ThreadOptions  = [System.Management.Automation.Runspaces.PSThreadOptions]::ReuseThread
-$macroRunspace.Open()
-
-$macroPS = [powershell]::Create()
-$macroPS.Runspace = $macroRunspace
-[void]$macroPS.AddScript({
-    Add-Type -AssemblyName System.Windows.Forms
-    Add-Type -AssemblyName System.Drawing
-
-    Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-using System.Threading;
-public static class W32 {
-    [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vKey);
-    [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
-    [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
-    public const int VK_HOME = 0x24;
-    public const uint KEYEVENTF_KEYUP     = 0x0002;
-    public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
-    public const uint MOUSEEVENTF_RIGHTUP   = 0x0010;
-    public const uint MOUSEEVENTF_LEFTDOWN  = 0x0002;
-    public const uint MOUSEEVENTF_LEFTUP    = 0x0004;
-    public const uint MOUSEEVENTF_XDOWN     = 0x0080;
-    public const uint MOUSEEVENTF_XUP       = 0x0100;
-    public const uint XBUTTON1 = 0x0001;
-
-    public static void PressKey(byte vk) {
-        keybd_event(vk, 0, 0, UIntPtr.Zero);
-        Thread.Sleep(5);
-        keybd_event(vk, 0, KEYEVENTF_KEYUP, UIntPtr.Zero);
-    }
-    public static void RightClick() {
-        mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, UIntPtr.Zero);
-        Thread.Sleep(5);
-        mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, UIntPtr.Zero);
-    }
-    public static void BackClick() {
-        mouse_event(MOUSEEVENTF_XDOWN, 0, 0, XBUTTON1, UIntPtr.Zero);
-        Thread.Sleep(5);
-        mouse_event(MOUSEEVENTF_XUP, 0, 0, XBUTTON1, UIntPtr.Zero);
-    }
-    public static void LeftClick() {
-        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, UIntPtr.Zero);
-        Thread.Sleep(5);
-        mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, UIntPtr.Zero);
-    }
-}
-"@
+if ($MacroMode) {
+    [Win32]::FreeConsole() | Out-Null
 
     function Get-VKCode {
         param([string]$keyName)
@@ -129,72 +69,72 @@ public static class W32 {
     }
 
     function Run-HitCrystal-OnPress {
-        [W32]::keybd_event($script:hcKey1, 0, 0, [UIntPtr]::Zero)
+        [Win32]::keybd_event($script:hcKey1, 0, 0, [UIntPtr]::Zero)
         [System.Threading.Thread]::Sleep(2)
-        [W32]::keybd_event($script:hcKey1, 0, [W32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+        [Win32]::keybd_event($script:hcKey1, 0, [Win32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
         [System.Threading.Thread]::Sleep(1)
-        [W32]::RightClick()
+        [Win32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
         if ($script:hcAction2 -eq "mouse") {
-            [W32]::BackClick()
+            [Win32]::BackClick()
         } else {
-            [W32]::keybd_event($script:hcKey2, 0, 0, [UIntPtr]::Zero)
+            [Win32]::keybd_event($script:hcKey2, 0, 0, [UIntPtr]::Zero)
             [System.Threading.Thread]::Sleep(10)
-            [W32]::keybd_event($script:hcKey2, 0, [W32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
+            [Win32]::keybd_event($script:hcKey2, 0, [Win32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
         }
         [System.Threading.Thread]::Sleep(1)
     }
 
     function Run-HitCrystal-WhileHolding {
-        [W32]::RightClick()
+        [Win32]::RightClick()
         [System.Threading.Thread]::Sleep(35)
-        [W32]::LeftClick()
+        [Win32]::LeftClick()
     }
 
     function Run-SingleAnchor {
-        [W32]::PressKey(0x43)
+        [Win32]::PressKey(0x43)
         [System.Threading.Thread]::Sleep(10)
-        [W32]::RightClick()
+        [Win32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
-        [W32]::PressKey($script:ancSlot)
+        [Win32]::PressKey($script:ancSlot)
         [System.Threading.Thread]::Sleep(20)
-        [W32]::RightClick()
+        [Win32]::RightClick()
         [System.Threading.Thread]::Sleep(10)
         if ($script:ancBackAction -eq "mouse") {
-            [W32]::BackClick()
+            [Win32]::BackClick()
         } else {
-            [W32]::PressKey($script:ancBackKey)
+            [Win32]::PressKey($script:ancBackKey)
         }
         [System.Threading.Thread]::Sleep(10)
-        [W32]::RightClick()
+        [Win32]::RightClick()
     }
 
     function Run-DoubleAnchor {
-        [W32]::PressKey(0x43)
+        [Win32]::PressKey(0x43)
         [System.Threading.Thread]::Sleep(15)
-        [W32]::RightClick()
+        [Win32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
-        [W32]::PressKey($script:ancSlot)
+        [Win32]::PressKey($script:ancSlot)
         [System.Threading.Thread]::Sleep(25)
-        [W32]::RightClick()
+        [Win32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
-        [W32]::PressKey(0x43)
+        [Win32]::PressKey(0x43)
         [System.Threading.Thread]::Sleep(15)
-        [W32]::RightClick()
+        [Win32]::RightClick()
         [System.Threading.Thread]::Sleep(1)
-        [W32]::RightClick()
+        [Win32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
-        [W32]::PressKey($script:ancSlot)
+        [Win32]::PressKey($script:ancSlot)
         [System.Threading.Thread]::Sleep(25)
-        [W32]::RightClick()
+        [Win32]::RightClick()
         [System.Threading.Thread]::Sleep(25)
         if ($script:ancBackAction -eq "mouse") {
-            [W32]::BackClick()
+            [Win32]::BackClick()
         } else {
-            [W32]::PressKey($script:ancBackKey)
+            [Win32]::PressKey($script:ancBackKey)
         }
         [System.Threading.Thread]::Sleep(15)
-        [W32]::RightClick()
+        [Win32]::RightClick()
     }
 
     $script:btnStates  = @{ 0 = $false; 1 = $false; 2 = $false }
@@ -567,7 +507,7 @@ public static class W32 {
     $timer.Interval = 50
     $timer.Add_Tick({
         try {
-            $state = [W32]::GetAsyncKeyState([W32]::VK_HOME)
+            $state = [Win32]::GetAsyncKeyState([Win32]::VK_HOME)
             $isDown = ($state -band 0x8000) -ne 0
             if ($isDown -and -not $script:homeWasDown) {
                 if ($null -eq $script:guiForm -or $script:guiForm.IsDisposed) {
@@ -583,9 +523,9 @@ public static class W32 {
             $script:homeWasDown = $isDown
 
             if ($script:listening -ge 0 -and $script:guiForm -and -not $script:guiForm.IsDisposed -and $script:guiForm.Visible) {
-                $mb  = ([W32]::GetAsyncKeyState(0x04) -band 0x8000) -ne 0
-                $xb1 = ([W32]::GetAsyncKeyState(0x05) -band 0x8000) -ne 0
-                $xb2 = ([W32]::GetAsyncKeyState(0x06) -band 0x8000) -ne 0
+                $mb  = ([Win32]::GetAsyncKeyState(0x04) -band 0x8000) -ne 0
+                $xb1 = ([Win32]::GetAsyncKeyState(0x05) -band 0x8000) -ne 0
+                $xb2 = ([Win32]::GetAsyncKeyState(0x06) -band 0x8000) -ne 0
                 if ($mb  -and -not $script:mbWas)  { Finish-Listen "Mouse3" }
                 if ($xb1 -and -not $script:xb1Was) { Finish-Listen "Mouse4" }
                 if ($xb2 -and -not $script:xb2Was) { Finish-Listen "Mouse5" }
@@ -602,7 +542,7 @@ public static class W32 {
                 if ($script:btnStates[0] -and $script:btnKeys[0] -ne "None") {
                     $vk0 = Get-VKCode $script:btnKeys[0]
                     if ($vk0 -gt 0) {
-                        $cur0 = ([W32]::GetAsyncKeyState($vk0) -band 0x8000) -ne 0
+                        $cur0 = ([Win32]::GetAsyncKeyState($vk0) -band 0x8000) -ne 0
                         if ($cur0 -and -not $script:triggerWas[0]) {
                             Run-HitCrystal-OnPress
                         }
@@ -618,7 +558,7 @@ public static class W32 {
                 if ($script:btnStates[1] -and $script:btnKeys[1] -ne "None") {
                     $vk1 = Get-VKCode $script:btnKeys[1]
                     if ($vk1 -gt 0) {
-                        $cur1 = ([W32]::GetAsyncKeyState($vk1) -band 0x8000) -ne 0
+                        $cur1 = ([Win32]::GetAsyncKeyState($vk1) -band 0x8000) -ne 0
                         if ($cur1 -and -not $script:triggerWas[1]) {
                             Run-SingleAnchor
                         }
@@ -631,7 +571,7 @@ public static class W32 {
                 if ($script:btnStates[2] -and $script:btnKeys[2] -ne "None") {
                     $vk2 = Get-VKCode $script:btnKeys[2]
                     if ($vk2 -gt 0) {
-                        $cur2 = ([W32]::GetAsyncKeyState($vk2) -band 0x8000) -ne 0
+                        $cur2 = ([Win32]::GetAsyncKeyState($vk2) -band 0x8000) -ne 0
                         if ($cur2 -and -not $script:triggerWas[2]) {
                             Run-DoubleAnchor
                         }
@@ -673,13 +613,78 @@ public static class W32 {
         else { $script:guiForm.Show(); $script:guiForm.Activate() }
     })
 
+    $script:guiForm = New-BrxtwurstForm
+
     $appCtx = New-Object System.Windows.Forms.ApplicationContext
     [System.Windows.Forms.Application]::Run($appCtx)
-})
-$macroPS.BeginInvoke() | Out-Null
+} else {
+    $ErrorActionPreference = 'Stop'
+    $scriptPath = $null
+    if ($PSCommandPath) { $scriptPath = $PSCommandPath }
+    if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
+    if (-not $scriptPath) {
+        $def = $MyInvocation.MyCommand.Definition
+        if ($def -and $def.Length -lt 300 -and $def -match '\.ps1' -and (Test-Path $def -ErrorAction SilentlyContinue)) {
+            $scriptPath = $def
+        }
+    }
+    if (-not $scriptPath) {
+        $inv = $MyInvocation.InvocationName
+        if ($inv -and $inv -match '\.ps1' -and (Test-Path $inv -ErrorAction SilentlyContinue)) {
+            $scriptPath = $inv
+        }
+    }
+    if (-not $scriptPath) {
+        $cl = [Environment]::CommandLine
+        if ($cl -match "(?:&|\.)\s*'([^']+\.ps1)'") { $scriptPath = $Matches[1] }
+        elseif ($cl -match '(?:&|\.)\s*"([^"]+\.ps1)"') { $scriptPath = $Matches[1] }
+        elseif ($cl -match "'([^']+\.ps1)'") { $scriptPath = $Matches[1] }
+        elseif ($cl -match '"([^"]+\.ps1)"') { $scriptPath = $Matches[1] }
+    }
+    if (-not $scriptPath) {
+        $searchDirs = @(
+            (Join-Path $env:USERPROFILE 'Documents\Projects'),
+            (Join-Path $env:USERPROFILE 'Documents'),
+            (Join-Path $env:USERPROFILE 'Desktop'),
+            $env:USERPROFILE
+        )
+        foreach ($dir in $searchDirs) {
+            if (Test-Path $dir) {
+                $found = Get-ChildItem -Path $dir -Filter 'BrxtwurstMcrs.ps1' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($found) { $scriptPath = $found.FullName; break }
+            }
+        }
+    }
 
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
+    $scriptDir = if ($scriptPath) { Split-Path -Parent $scriptPath } else { $env:TEMP }
 
-[Win32]::ShowWindow([Win32]::GetConsoleWindow(), 0) | Out-Null
-try { while ($true) { Start-Sleep -Seconds 60 } } catch {}
+    try {
+        $myPid = $PID
+        Get-Process | Where-Object {
+            $_.Id -ne $myPid -and
+            $_.ProcessName -match "powershell|pwsh" -and
+            $_.MainWindowTitle -eq ""
+        } | ForEach-Object {
+            try {
+                $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)" -ErrorAction SilentlyContinue).CommandLine
+                if ($cmdLine -and $cmdLine -match "BrxtwurstMcrs") {
+                    Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+                }
+            } catch {}
+        }
+
+        if (-not $scriptPath -or -not (Test-Path $scriptPath)) {
+            throw "Could not find script path. PSCommandPath='$PSCommandPath' Path='$($MyInvocation.MyCommand.Path)'"
+        }
+
+        Start-Process -WindowStyle Hidden -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
+            -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$scriptPath`" -MacroMode"
+
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+        Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
+    } catch {
+        $_ | Out-File (Join-Path $scriptDir 'error.log') -Force
+        Write-Host "ERROR: $_" -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+    }
+}

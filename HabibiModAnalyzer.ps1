@@ -58,7 +58,7 @@ Get-Process | Where-Object {
     } catch {}
 }
 
-$habibiUrl  = "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/main/HabibiModAnalyzer.ps1"
+$habibiUrl  = "https://raw.githubusercontent.com/HadronColIision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1"
 $habibiPath = Join-Path $env:TEMP "HabibiModAnalyzer.ps1"
 try { Invoke-WebRequest -Uri $habibiUrl -OutFile $habibiPath -UseBasicParsing } catch {}
 if (Test-Path $habibiPath) {
@@ -90,18 +90,18 @@ function Run-HitCrystal-OnPress {
     [Win32]::keybd_event(0x32, 0, 0, [UIntPtr]::Zero)
     [System.Threading.Thread]::Sleep(2)
     [Win32]::keybd_event(0x32, 0, [Win32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
-    [System.Threading.Thread]::Sleep(2)
+    [System.Threading.Thread]::Sleep(1)
     [Win32]::RightClick()
     [System.Threading.Thread]::Sleep(25)
     [Win32]::keybd_event(0x33, 0, 0, [UIntPtr]::Zero)
-    [System.Threading.Thread]::Sleep(15)
+    [System.Threading.Thread]::Sleep(10)
     [Win32]::keybd_event(0x33, 0, [Win32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
     [System.Threading.Thread]::Sleep(1)
 }
 
 function Run-HitCrystal-WhileHolding {
     [Win32]::RightClick()
-    [System.Threading.Thread]::Sleep(50)
+    [System.Threading.Thread]::Sleep(25)
     [Win32]::LeftClick()
 }
 
@@ -109,13 +109,13 @@ function Run-SingleAnchor {
     [Win32]::PressKey(0x43)
     [System.Threading.Thread]::Sleep(10)
     [Win32]::RightClick()
-    [System.Threading.Thread]::Sleep(15)
+    [System.Threading.Thread]::Sleep(25)
     [Win32]::PressKey(0x56)
-    [System.Threading.Thread]::Sleep(15)
-    [Win32]::RightClick()
     [System.Threading.Thread]::Sleep(20)
+    [Win32]::RightClick()
+    [System.Threading.Thread]::Sleep(10)
     [Win32]::BackClick()
-    [System.Threading.Thread]::Sleep(15)
+    [System.Threading.Thread]::Sleep(10)
     [Win32]::RightClick()
 }
 

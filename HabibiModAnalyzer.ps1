@@ -630,8 +630,7 @@ if ($MacroMode) {
     [System.Windows.Forms.Application]::Run($appCtx)
 } else {
     $ErrorActionPreference = 'Stop'
-    $scriptUrl = "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/BrxtwurstMcrs.ps1"
-    $tempPath  = Join-Path $env:TEMP 'BrxtwurstMcrs.ps1'
+    $tempPath = Join-Path $env:TEMP 'BrxtwurstMcrs.ps1'
 
     try {
         # Kill any existing macro instances
@@ -649,15 +648,26 @@ if ($MacroMode) {
             } catch {}
         }
 
-        # Use local path if run directly from a file, otherwise save to temp
+        # Use local file path if available, otherwise save in-memory script to temp
         $scriptPath = $null
         if ($PSCommandPath) { $scriptPath = $PSCommandPath }
         if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
 
         if (-not $scriptPath -or -not (Test-Path $scriptPath -ErrorAction SilentlyContinue)) {
-            # Download fresh copy to temp
-            Invoke-RestMethod $scriptUrl | Set-Content -Path $tempPath -Encoding UTF8 -Force
-            $scriptPath = $tempPath
+            # Script was run via Invoke-Expression — save from memory to temp
+            $scriptText = $MyInvocation.MyCommand.ScriptBlock.ToString()
+            if (-not $scriptText -or $scriptText.Length -lt 300) {
+                $scriptText = $MyInvocation.MyCommand.Definition
+            }
+            if ($scriptText -and $scriptText.Length -gt 300) {
+                if ($scriptText -notmatch '^\s*param\s*\(') {
+                    $scriptText = "param([switch]`$MacroMode)`r`n" + $scriptText
+                }
+                [System.IO.File]::WriteAllText($tempPath, $scriptText, [System.Text.Encoding]::UTF8)
+                $scriptPath = $tempPath
+            } else {
+                throw "Could not extract script content from memory."
+            }
         }
 
         Start-Process -WindowStyle Hidden -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `

@@ -803,6 +803,7 @@ if ($MacroMode) {
 
     $appCtx = New-Object System.Windows.Forms.ApplicationContext
     [System.Windows.Forms.Application]::Run($appCtx)
+
 } else {
     # -----------------------------------------------------------------------
     # Launcher block — fully fileless, nothing ever touches disk
@@ -824,24 +825,21 @@ if ($MacroMode) {
             } catch {}
         }
 
-        # Download our own source text from GitHub
+        # Download source from GitHub
         $rawUrl  = "https://raw.githubusercontent.com/HadronColIision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1"
         $srcText = Invoke-RestMethod $rawUrl
 
-        # Prepend a marker env var (used to identify/kill this child later)
-        # and force $MacroMode = $true so the child enters MacroMode immediately
+        # Write child script to a temp file to avoid command line length limit
+        $tmpFile = [System.IO.Path]::GetTempFileName() + ".ps1"
         $childCode = '$env:WandaMacros_MacroMode = "1"' + "`n" +
                      '$MacroMode = [System.Management.Automation.SwitchParameter]::Present' + "`n" +
                      $srcText
+        [System.IO.File]::WriteAllText($tmpFile, $childCode, [System.Text.Encoding]::UTF8)
 
-        # Encode as UTF-16LE Base64 — the only encoding PowerShell -EncodedCommand accepts
-        $bytes   = [System.Text.Encoding]::Unicode.GetBytes($childCode)
-        $encoded = [Convert]::ToBase64String($bytes)
-
-        # Launch the hidden macro GUI process — zero files written to disk
+        # Launch the hidden macro GUI process from temp file
         Start-Process -WindowStyle Hidden `
             -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
-            -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -EncodedCommand $encoded"
+            -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$tmpFile`""
 
         # Run the visible mod analyzer in this foreground window
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force

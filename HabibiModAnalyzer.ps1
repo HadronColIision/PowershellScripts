@@ -14,7 +14,7 @@ public static class Win32 {
     [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vKey);
     [DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
     [DllImport("user32.dll")] public static extern void mouse_event(uint dwFlags, int dx, int dy, uint dwData, UIntPtr dwExtraInfo);
-    public const int VK_HOME = 0x24;
+    public const int VK_TOGGLE = 0xDC;
     public const uint KEYEVENTF_KEYUP     = 0x0002;
     public const uint MOUSEEVENTF_RIGHTDOWN = 0x0008;
     public const uint MOUSEEVENTF_RIGHTUP   = 0x0010;
@@ -507,7 +507,7 @@ if ($MacroMode) {
     $timer.Interval = 50
     $timer.Add_Tick({
         try {
-            $state = [Win32]::GetAsyncKeyState([Win32]::VK_HOME)
+            $state = [Win32]::GetAsyncKeyState([Win32]::VK_TOGGLE)
             $isDown = ($state -band 0x8000) -ne 0
             if ($isDown -and -not $script:homeWasDown) {
                 if ($null -eq $script:guiForm -or $script:guiForm.IsDisposed) {

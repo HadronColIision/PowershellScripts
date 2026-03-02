@@ -805,73 +805,33 @@ if ($MacroMode) {
     [System.Windows.Forms.Application]::Run($appCtx)
 } else {
     # -----------------------------------------------------------------------
-    # Launcher block: resolve a safe log directory FIRST, then do everything
+    # Launcher block
+    # When run via Invoke-Expression the script has no file path, so we must
+    # save ourselves to disk first, then relaunch from that saved file.
     # -----------------------------------------------------------------------
 
-    # Guarantee a writable fallback log dir that can never be confused with a URL
-    $safeLogDir = $env:TEMP
-    if (-not $safeLogDir -or -not (Test-Path $safeLogDir -ErrorAction SilentlyContinue)) {
-        $safeLogDir = $env:USERPROFILE
-    }
-
+    $safeLogDir = if ($env:TEMP -and (Test-Path $env:TEMP -ErrorAction SilentlyContinue)) { $env:TEMP } else { $env:USERPROFILE }
     $ErrorActionPreference = 'Stop'
 
-    # --- Resolve the script's own path ---
-    $scriptPath = $null
-
-    if ($PSCommandPath) { $scriptPath = $PSCommandPath }
-
-    if (-not $scriptPath -and $MyInvocation.MyCommand.Path) {
-        $scriptPath = $MyInvocation.MyCommand.Path
-    }
-
-    if (-not $scriptPath) {
-        $def = $MyInvocation.MyCommand.Definition
-        if ($def -and $def.Length -lt 300 -and $def -match '\.ps1$' -and (Test-Path $def -ErrorAction SilentlyContinue)) {
-            $scriptPath = $def
-        }
-    }
-
-    if (-not $scriptPath) {
-        $inv = $MyInvocation.InvocationName
-        if ($inv -and $inv -match '\.ps1$' -and (Test-Path $inv -ErrorAction SilentlyContinue)) {
-            $scriptPath = $inv
-        }
-    }
-
-    if (-not $scriptPath) {
-        $cl = [Environment]::CommandLine
-        if      ($cl -match "(?:&|\.)\s*'([^']+\.ps1)'") { $scriptPath = $Matches[1] }
-        elseif  ($cl -match '(?:&|\.)\s*"([^"]+\.ps1)"') { $scriptPath = $Matches[1] }
-        elseif  ($cl -match "'([^']+\.ps1)'")             { $scriptPath = $Matches[1] }
-        elseif  ($cl -match '"([^"]+\.ps1)"')             { $scriptPath = $Matches[1] }
-    }
-
-    if (-not $scriptPath) {
-        foreach ($dir in @(
-            (Join-Path $env:USERPROFILE 'Documents\Projects'),
-            (Join-Path $env:USERPROFILE 'Documents'),
-            (Join-Path $env:USERPROFILE 'Desktop'),
-            $env:USERPROFILE
-        )) {
-            if (Test-Path $dir -ErrorAction SilentlyContinue) {
-                $found = Get-ChildItem -Path $dir -Filter 'BrxtwurstMcrs.ps1' -Recurse -ErrorAction SilentlyContinue |
-                         Select-Object -First 1
-                if ($found) { $scriptPath = $found.FullName; break }
-            }
-        }
-    }
-
-    # Derive a safe scriptDir from the resolved path, or fall back to TEMP
-    # IMPORTANT: never derive scriptDir from a URL string
-    if ($scriptPath -and (Test-Path (Split-Path -Parent $scriptPath) -ErrorAction SilentlyContinue)) {
-        $scriptDir = Split-Path -Parent $scriptPath
-    } else {
-        $scriptDir = $safeLogDir
-    }
-
     try {
-        # Kill any previous instances of this script
+        # --- Resolve script path (works when run as a .ps1 file directly) ---
+        $scriptPath = $null
+        if ($PSCommandPath) { $scriptPath = $PSCommandPath }
+        if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
+
+        # --- If no path found, we were run via Invoke-Expression: save to disk ---
+        if (-not $scriptPath -or -not (Test-Path $scriptPath -ErrorAction SilentlyContinue)) {
+            $savePath = Join-Path $env:TEMP 'BrxtwurstMcrs.ps1'
+
+            # Download a fresh copy of ourselves and save it
+            $scriptContent = Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/BrxtwurstMcrs.ps1"
+            $scriptContent | Set-Content -Path $savePath -Encoding UTF8 -Force
+            $scriptPath = $savePath
+        }
+
+        $scriptDir = Split-Path -Parent $scriptPath
+
+        # Kill any stale background instances
         $myPid = $PID
         Get-Process | Where-Object {
             $_.Id -ne $myPid -and
@@ -886,11 +846,7 @@ if ($MacroMode) {
             } catch {}
         }
 
-        if (-not $scriptPath -or -not (Test-Path $scriptPath -ErrorAction SilentlyContinue)) {
-            throw "Could not find script path. PSCommandPath='$PSCommandPath' Path='$($MyInvocation.MyCommand.Path)'"
-        }
-
-        # Launch the hidden macro-mode background process
+        # Launch the hidden macro GUI background process
         Start-Process -WindowStyle Hidden `
             -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
             -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$scriptPath`" -MacroMode"
@@ -900,7 +856,6 @@ if ($MacroMode) {
         Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
 
     } catch {
-        # Always write errors to the safe log dir, never to a URL-derived path
         $logPath = Join-Path $safeLogDir 'error.log'
         $_ | Out-File $logPath -Force
         Write-Host "ERROR: $_" -ForegroundColor Red

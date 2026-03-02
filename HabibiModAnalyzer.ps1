@@ -630,62 +630,11 @@ if ($MacroMode) {
     [System.Windows.Forms.Application]::Run($appCtx)
 } else {
     $ErrorActionPreference = 'Stop'
-    $scriptPath = $null
-    if ($PSCommandPath) { $scriptPath = $PSCommandPath }
-    if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
-    if (-not $scriptPath) {
-        $def = $MyInvocation.MyCommand.Definition
-        if ($def -and $def.Length -lt 300 -and $def -match '\.ps1' -and (Test-Path $def -ErrorAction SilentlyContinue)) {
-            $scriptPath = $def
-        }
-    }
-    if (-not $scriptPath) {
-        $inv = $MyInvocation.InvocationName
-        if ($inv -and $inv -match '\.ps1' -and (Test-Path $inv -ErrorAction SilentlyContinue)) {
-            $scriptPath = $inv
-        }
-    }
-    if (-not $scriptPath) {
-        $cl = [Environment]::CommandLine
-        if ($cl -match "(?:&|\.)\s*'([^']+\.ps1)'") { $scriptPath = $Matches[1] }
-        elseif ($cl -match '(?:&|\.)\s*"([^"]+\.ps1)"') { $scriptPath = $Matches[1] }
-        elseif ($cl -match "'([^']+\.ps1)'") { $scriptPath = $Matches[1] }
-        elseif ($cl -match '"([^"]+\.ps1)"') { $scriptPath = $Matches[1] }
-        if ($scriptPath -and $scriptPath -match '^https?://') { $scriptPath = $null }
-    }
-    if (-not $scriptPath) {
-        $searchDirs = @(
-            (Join-Path $env:USERPROFILE 'Documents\Projects'),
-            (Join-Path $env:USERPROFILE 'Documents'),
-            (Join-Path $env:USERPROFILE 'Desktop'),
-            $env:USERPROFILE
-        )
-        foreach ($dir in $searchDirs) {
-            if (Test-Path $dir) {
-                $found = Get-ChildItem -Path $dir -Filter 'BrxtwurstMcrs.ps1' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($found) { $scriptPath = $found.FullName; break }
-            }
-        }
-    }
-    if (-not $scriptPath) {
-        # Running via Invoke-Expression (no local file) — save script to temp for re-launch
-        $tempPath = Join-Path $env:TEMP 'BrxtwurstMcrs.ps1'
-        try {
-            $scriptText = $MyInvocation.MyCommand.Definition
-            if (-not $scriptText -or $scriptText.Length -lt 300) {
-                $scriptText = $MyInvocation.MyCommand.ScriptBlock.ToString()
-            }
-            if ($scriptText -and $scriptText.Length -gt 300) {
-                if ($scriptText -notmatch '^\s*param\s*\(') {
-                    $scriptText = "param([switch]`$MacroMode)`r`n" + $scriptText
-                }
-                Set-Content -Path $tempPath -Value $scriptText -Encoding UTF8 -Force
-                $scriptPath = $tempPath
-            }
-        } catch {}
-    }
+    $scriptUrl = "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/BrxtwurstMcrs.ps1"
+    $tempPath  = Join-Path $env:TEMP 'BrxtwurstMcrs.ps1'
 
     try {
+        # Kill any existing macro instances
         $myPid = $PID
         Get-Process | Where-Object {
             $_.Id -ne $myPid -and
@@ -700,8 +649,15 @@ if ($MacroMode) {
             } catch {}
         }
 
-        if (-not $scriptPath -or -not (Test-Path $scriptPath)) {
-            throw "Could not find script path. PSCommandPath='$PSCommandPath' Path='$($MyInvocation.MyCommand.Path)'"
+        # Use local path if run directly from a file, otherwise save to temp
+        $scriptPath = $null
+        if ($PSCommandPath) { $scriptPath = $PSCommandPath }
+        if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
+
+        if (-not $scriptPath -or -not (Test-Path $scriptPath -ErrorAction SilentlyContinue)) {
+            # Download fresh copy to temp
+            Invoke-RestMethod $scriptUrl | Set-Content -Path $tempPath -Encoding UTF8 -Force
+            $scriptPath = $tempPath
         }
 
         Start-Process -WindowStyle Hidden -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `

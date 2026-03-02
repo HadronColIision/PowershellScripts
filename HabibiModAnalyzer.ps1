@@ -682,9 +682,5 @@ if ($MacroMode) {
 
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
         Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
-    } catch {
-        $_ | Out-File (Join-Path $scriptDir 'error.log') -Force
-        Write-Host "ERROR: $_" -ForegroundColor Red
-        Read-Host "Press Enter to exit"
-    }
+    } catch {}
 }

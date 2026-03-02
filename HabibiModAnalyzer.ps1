@@ -621,6 +621,10 @@ if ($MacroMode) {
     $scriptPath = $null
     if ($PSCommandPath) { $scriptPath = $PSCommandPath }
     if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
+    if (-not $scriptPath -and $PSScriptRoot) {
+        $candidate = Join-Path $PSScriptRoot 'BrxtwurstMcrs.ps1'
+        if (Test-Path $candidate) { $scriptPath = $candidate }
+    }
     if (-not $scriptPath) {
         $def = $MyInvocation.MyCommand.Definition
         if ($def -and $def.Length -lt 300 -and $def -match '\.ps1' -and (Test-Path $def -ErrorAction SilentlyContinue)) {
@@ -670,7 +674,7 @@ if ($MacroMode) {
     }
 
     if ($scriptPath -and (Test-Path $scriptPath)) {
-        Start-Process -WindowStyle Hidden -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
+        Start-Process -WindowStyle Hidden -FilePath "powershell.exe" `
             -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$scriptPath`" -MacroMode"
     }
 

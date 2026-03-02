@@ -199,9 +199,9 @@ if ($MacroMode) {
     }
 
     function New-BrxtwurstForm {
-        $w = 360
-        $h = 340
-        $pad = 20
+        $w = 620
+        $h = 780
+        $pad = 28
         $contentW = $w - ($pad * 2)
 
         # --- Colors (Catppuccin Mocha) ---
@@ -211,11 +211,13 @@ if ($MacroMode) {
         $surface1   = [System.Drawing.ColorTranslator]::FromHtml("#45475a")
         $overlay0   = [System.Drawing.ColorTranslator]::FromHtml("#6c7086")
         $textClr    = [System.Drawing.ColorTranslator]::FromHtml("#cdd6f4")
+        $subtextClr = [System.Drawing.ColorTranslator]::FromHtml("#a6adc8")
         $accentClr  = [System.Drawing.ColorTranslator]::FromHtml("#cba6f7")
         $greenClr   = [System.Drawing.ColorTranslator]::FromHtml("#a6e3a1")
         $redClr     = [System.Drawing.ColorTranslator]::FromHtml("#f38ba8")
         $yellowClr  = [System.Drawing.ColorTranslator]::FromHtml("#f9e2af")
 
+        # --- Main Form ---
         $f = New-Object System.Windows.Forms.Form
         $f.Text            = "Wanda Macros"
         $f.ClientSize      = New-Object System.Drawing.Size($w, $h)
@@ -227,8 +229,10 @@ if ($MacroMode) {
         $f.KeyPreview      = $true
         $f.ShowInTaskbar   = $true
         $f.MinimizeBox     = $true
+        $f.Padding         = New-Object System.Windows.Forms.Padding(1)
         $f.Region          = [System.Drawing.Region]::new([System.Drawing.Rectangle]::new(0, 0, $w, $h))
 
+        # Key listening
         $f.Add_KeyDown({
             if ($script:listening -ge 0) {
                 Finish-Listen $_.KeyCode.ToString()
@@ -249,7 +253,7 @@ if ($MacroMode) {
         })
         $f.Add_MouseUp({ $this.Tag = $null })
 
-        # Accent bar
+        # --- Accent bar ---
         $accent = New-Object System.Windows.Forms.Panel
         $accent.Size      = New-Object System.Drawing.Size($w, 3)
         $accent.Location  = New-Object System.Drawing.Point(0, 0)
@@ -266,15 +270,15 @@ if ($MacroMode) {
         $accent.Add_MouseUp({ $this.FindForm().Tag = $null })
         $f.Controls.Add($accent)
 
-        # Title
+        # --- Title ---
         $titleLbl = New-Object System.Windows.Forms.Label
         $titleLbl.Text      = "Wanda Macros"
         $titleLbl.ForeColor = $textClr
-        $titleLbl.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 13)
+        $titleLbl.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 16)
         $titleLbl.AutoSize  = $false
-        $titleLbl.Size      = New-Object System.Drawing.Size(200, 36)
-        $titleLbl.Location  = New-Object System.Drawing.Point($pad, 8)
-        $titleLbl.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+        $titleLbl.Size      = New-Object System.Drawing.Size($w, 42)
+        $titleLbl.Location  = New-Object System.Drawing.Point(0, 12)
+        $titleLbl.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
         $titleLbl.Add_MouseDown({ if ($_.Button -eq "Left") { $this.FindForm().Tag = $_.Location } })
         $titleLbl.Add_MouseMove({
             if ($_.Button -eq "Left" -and $this.FindForm().Tag) {
@@ -287,55 +291,65 @@ if ($MacroMode) {
         $titleLbl.Add_MouseUp({ $this.FindForm().Tag = $null })
         $f.Controls.Add($titleLbl)
 
-        # Version
-        $verLbl = New-Object System.Windows.Forms.Label
-        $verLbl.Text      = "v0.4"
-        $verLbl.ForeColor = $surface0
-        $verLbl.Font      = New-Object System.Drawing.Font("Segoe UI", 8)
-        $verLbl.AutoSize  = $true
-        $verLbl.Location  = New-Object System.Drawing.Point(165, 18)
-        $f.Controls.Add($verLbl)
-
-        # Minimize
+        # --- Minimize button ---
         $minBtn = New-Object System.Windows.Forms.Label
         $minBtn.Text      = [char]0x2015
         $minBtn.ForeColor = $overlay0
         $minBtn.Font      = New-Object System.Drawing.Font("Segoe UI", 11)
         $minBtn.AutoSize  = $true
-        $minBtn.Location  = New-Object System.Drawing.Point(($w - 52), 8)
+        $minBtn.Location  = New-Object System.Drawing.Point(($w - 58), 8)
         $minBtn.Cursor    = [System.Windows.Forms.Cursors]::Hand
         $minBtn.Add_Click({ $this.FindForm().WindowState = [System.Windows.Forms.FormWindowState]::Minimized })
         $minBtn.Add_MouseEnter({ $this.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#cba6f7") })
         $minBtn.Add_MouseLeave({ $this.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#6c7086") })
         $f.Controls.Add($minBtn)
 
-        # Close
+        # --- Close button ---
         $xBtn = New-Object System.Windows.Forms.Label
         $xBtn.Text      = [char]0x2715
         $xBtn.ForeColor = $overlay0
         $xBtn.Font      = New-Object System.Drawing.Font("Segoe UI", 11)
         $xBtn.AutoSize  = $true
-        $xBtn.Location  = New-Object System.Drawing.Point(($w - 28), 8)
+        $xBtn.Location  = New-Object System.Drawing.Point(($w - 30), 8)
         $xBtn.Cursor    = [System.Windows.Forms.Cursors]::Hand
         $xBtn.Add_Click({ $this.FindForm().Hide() })
-        $xBtn.Add_MouseEnter({ $this.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#f38ba8") })
+        $xBtn.Add_MouseEnter({ $this.ForeColor = $redClr })
         $xBtn.Add_MouseLeave({ $this.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#6c7086") })
         $f.Controls.Add($xBtn)
 
-        $cy = 50
-
-        # Separator
+        # --- Top separator ---
         $sep = New-Object System.Windows.Forms.Panel
         $sep.Size      = New-Object System.Drawing.Size($contentW, 1)
-        $sep.Location  = New-Object System.Drawing.Point($pad, $cy)
+        $sep.Location  = New-Object System.Drawing.Point($pad, 60)
         $sep.BackColor = $surface0
         $f.Controls.Add($sep)
-        $cy += 14
 
-        # Preset buttons
-        $presetW = [int](($contentW - 8) / 2)
-        $presetH = 32
+        # --- Scrollable content area ---
+        $scroll = New-Object System.Windows.Forms.Panel
+        $scroll.Location   = New-Object System.Drawing.Point(0, 66)
+        $scroll.Size       = New-Object System.Drawing.Size($w, ($h - 66))
+        $scroll.AutoScroll = $true
+        $scroll.BackColor  = $baseBg
+        $f.Controls.Add($scroll)
 
+        $cy = 10
+        $nudW = 80
+
+        # ===== KEYBIND PRESETS =====
+        $presetHdr = New-Object System.Windows.Forms.Label
+        $presetHdr.Text      = "KEYBIND PRESETS"
+        $presetHdr.ForeColor = $accentClr
+        $presetHdr.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 9)
+        $presetHdr.AutoSize  = $false
+        $presetHdr.Size      = New-Object System.Drawing.Size($contentW, 22)
+        $presetHdr.Location  = New-Object System.Drawing.Point($pad, $cy)
+        $scroll.Controls.Add($presetHdr)
+        $cy += 28
+
+        $presetW = [int](($contentW - 12) / 2)
+        $presetH = 40
+
+        # Brxtwurst preset
         $brxBtn = New-Object System.Windows.Forms.Button
         $brxBtn.Text      = "Brxtwurst"
         $brxBtn.Size      = New-Object System.Drawing.Size($presetW, $presetH)
@@ -344,133 +358,220 @@ if ($MacroMode) {
         $brxBtn.FlatAppearance.BorderSize         = 1
         $brxBtn.FlatAppearance.MouseOverBackColor = $surface0
         $brxBtn.FlatAppearance.MouseDownBackColor = $accentClr
-        $brxBtn.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 9)
+        $brxBtn.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 10)
         $brxBtn.Cursor    = [System.Windows.Forms.Cursors]::Hand
+        $brxBtn.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
         if ($script:activePreset -eq "Brxtwurst") {
-            $brxBtn.BackColor = $surface0; $brxBtn.ForeColor = $accentClr
+            $brxBtn.BackColor = $surface0
+            $brxBtn.ForeColor = $accentClr
             $brxBtn.FlatAppearance.BorderColor = $accentClr
         } else {
-            $brxBtn.BackColor = $mantleBg; $brxBtn.ForeColor = $surface1
+            $brxBtn.BackColor = $mantleBg
+            $brxBtn.ForeColor = $surface1
             $brxBtn.FlatAppearance.BorderColor = $surface0
         }
         $brxBtn.Add_Click({
             $script:activePreset  = "Brxtwurst"
-            $script:hcKey1        = 0x32; $script:hcAction2 = "key"; $script:hcKey2 = 0x33
-            $script:ancSlot       = 0x56; $script:ancBackAction = "mouse"; $script:ancBackKey = 0x00
+            $script:hcKey1        = 0x32
+            $script:hcAction2     = "key"
+            $script:hcKey2        = 0x33
+            $script:ancSlot       = 0x56
+            $script:ancBackAction = "mouse"
+            $script:ancBackKey    = 0x00
             $ac = [System.Drawing.ColorTranslator]::FromHtml("#cba6f7")
             $this.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
-            $this.ForeColor = $ac; $this.FlatAppearance.BorderColor = $ac
+            $this.ForeColor = $ac
+            $this.FlatAppearance.BorderColor = $ac
             $script:presetWanBtn.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#181825")
             $script:presetWanBtn.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#45475a")
             $script:presetWanBtn.FlatAppearance.BorderColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
         })
-        $f.Controls.Add($brxBtn)
+        $scroll.Controls.Add($brxBtn)
         $script:presetBrxBtn = $brxBtn
 
+        # Wanda preset
         $wanBtn = New-Object System.Windows.Forms.Button
         $wanBtn.Text      = "Wanda"
         $wanBtn.Size      = New-Object System.Drawing.Size($presetW, $presetH)
-        $wanBtn.Location  = New-Object System.Drawing.Point(($pad + $presetW + 8), $cy)
+        $wanBtn.Location  = New-Object System.Drawing.Point(($pad + $presetW + 12), $cy)
         $wanBtn.FlatStyle = "Flat"
         $wanBtn.FlatAppearance.BorderSize         = 1
         $wanBtn.FlatAppearance.MouseOverBackColor = $surface0
         $wanBtn.FlatAppearance.MouseDownBackColor = $accentClr
-        $wanBtn.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 9)
+        $wanBtn.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 10)
         $wanBtn.Cursor    = [System.Windows.Forms.Cursors]::Hand
+        $wanBtn.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
         if ($script:activePreset -eq "Wanda") {
-            $wanBtn.BackColor = $surface0; $wanBtn.ForeColor = $accentClr
+            $wanBtn.BackColor = $surface0
+            $wanBtn.ForeColor = $accentClr
             $wanBtn.FlatAppearance.BorderColor = $accentClr
         } else {
-            $wanBtn.BackColor = $mantleBg; $wanBtn.ForeColor = $surface1
+            $wanBtn.BackColor = $mantleBg
+            $wanBtn.ForeColor = $surface1
             $wanBtn.FlatAppearance.BorderColor = $surface0
         }
         $wanBtn.Add_Click({
             $script:activePreset  = "Wanda"
-            $script:hcKey1        = 0x51; $script:hcAction2 = "mouse"; $script:hcKey2 = 0x00
-            $script:ancSlot       = 0x31; $script:ancBackAction = "key"; $script:ancBackKey = 0x33
+            $script:hcKey1        = 0x51
+            $script:hcAction2     = "mouse"
+            $script:hcKey2        = 0x00
+            $script:ancSlot       = 0x31
+            $script:ancBackAction = "key"
+            $script:ancBackKey    = 0x33
             $ac = [System.Drawing.ColorTranslator]::FromHtml("#cba6f7")
             $this.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
-            $this.ForeColor = $ac; $this.FlatAppearance.BorderColor = $ac
+            $this.ForeColor = $ac
+            $this.FlatAppearance.BorderColor = $ac
             $script:presetBrxBtn.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#181825")
             $script:presetBrxBtn.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#45475a")
             $script:presetBrxBtn.FlatAppearance.BorderColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
         })
-        $f.Controls.Add($wanBtn)
+        $scroll.Controls.Add($wanBtn)
         $script:presetWanBtn = $wanBtn
-        $cy += $presetH + 16
+        $cy += $presetH + 24
 
-        # Macro rows
-        $macroNames = @("Hit Crystal", "Single Anchor", "Double Anchor")
-        $kbW = 72
-        $toggleW = 56
-        $rowH = 40
+        # ===== MACRO SECTIONS =====
+        $macroSections = @(
+            @{
+                Index = 0
+                Name  = "Hit Crystal"
+                DelayGroups = @(
+                    @{ Header = "ON PRESS"; Items = @(
+                        @{ Key = "hcPress_swap"; Label = "After swap key down" },
+                        @{ Key = "hcPress_afterSwap"; Label = "After swap key up" },
+                        @{ Key = "hcPress_click"; Label = "After right click" },
+                        @{ Key = "hcPress_key2"; Label = "After second key" },
+                        @{ Key = "hcPress_end"; Label = "End delay" }
+                    )},
+                    @{ Header = "WHILE HELD"; Items = @(
+                        @{ Key = "hcHold_click"; Label = "After right click" }
+                    )}
+                )
+            },
+            @{
+                Index = 1
+                Name  = "Single Anchor"
+                DelayGroups = @(
+                    @{ Header = "DELAYS"; Items = @(
+                        @{ Key = "sa_crystal"; Label = "After crystal key" },
+                        @{ Key = "sa_place"; Label = "After place click" },
+                        @{ Key = "sa_slot"; Label = "After slot key" },
+                        @{ Key = "sa_use"; Label = "After use click" },
+                        @{ Key = "sa_back"; Label = "After back action" }
+                    )}
+                )
+            },
+            @{
+                Index = 2
+                Name  = "Double Anchor"
+                DelayGroups = @(
+                    @{ Header = "DELAYS"; Items = @(
+                        @{ Key = "da_crystal1"; Label = "After crystal key 1" },
+                        @{ Key = "da_place1"; Label = "After place click 1" },
+                        @{ Key = "da_slot1"; Label = "After slot key 1" },
+                        @{ Key = "da_use1"; Label = "After use click 1" },
+                        @{ Key = "da_crystal2"; Label = "After crystal key 2" },
+                        @{ Key = "da_place2"; Label = "After quick click" },
+                        @{ Key = "da_place3"; Label = "After hit click" },
+                        @{ Key = "da_slot2"; Label = "After slot key 2" },
+                        @{ Key = "da_use2"; Label = "After use click 2" },
+                        @{ Key = "da_back"; Label = "After back action" }
+                    )}
+                )
+            }
+        )
 
-        for ($idx = 0; $idx -lt 3; $idx++) {
-            # Row background
-            $row = New-Object System.Windows.Forms.Panel
-            $row.Size      = New-Object System.Drawing.Size($contentW, $rowH)
-            $row.Location  = New-Object System.Drawing.Point($pad, $cy)
-            $row.BackColor = $mantleBg
-            $f.Controls.Add($row)
+        foreach ($section in $macroSections) {
+            $idx = $section.Index
 
-            # Status dot
+            # --- Section separator ---
+            $sSep = New-Object System.Windows.Forms.Panel
+            $sSep.Size      = New-Object System.Drawing.Size($contentW, 1)
+            $sSep.Location  = New-Object System.Drawing.Point($pad, $cy)
+            $sSep.BackColor = $surface0
+            $scroll.Controls.Add($sSep)
+            $cy += 16
+
+            # --- Card panel ---
+            $cardInnerH = 50
+            foreach ($dg in $section.DelayGroups) { $cardInnerH += 28 + ($dg.Items.Count * 32) + 6 }
+            $cardH = $cardInnerH + 8
+
+            $card = New-Object System.Windows.Forms.Panel
+            $card.Size      = New-Object System.Drawing.Size($contentW, $cardH)
+            $card.Location  = New-Object System.Drawing.Point($pad, $cy)
+            $card.BackColor = $mantleBg
+            $scroll.Controls.Add($card)
+
+            $iy = 8
+
+            # --- Header row: dot + name + ON/OFF toggle + keybind ---
             $dot = New-Object System.Windows.Forms.Panel
-            $dot.Size     = New-Object System.Drawing.Size(8, 8)
-            $dot.Location = New-Object System.Drawing.Point(12, 16)
+            $dot.Size     = New-Object System.Drawing.Size(10, 10)
+            $dot.Location = New-Object System.Drawing.Point(14, ($iy + 13))
             if ($script:btnStates[$idx]) { $dot.BackColor = $greenClr } else { $dot.BackColor = $surface1 }
-            $row.Controls.Add($dot)
+            $card.Controls.Add($dot)
             $script:dotRefs[$idx] = $dot
 
-            # Name
-            $lbl = New-Object System.Windows.Forms.Label
-            $lbl.Text      = $macroNames[$idx]
-            $lbl.ForeColor = $textClr
-            $lbl.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 10)
-            $lbl.AutoSize  = $false
-            $lbl.Size      = New-Object System.Drawing.Size(($contentW - $toggleW - $kbW - 50), $rowH)
-            $lbl.Location  = New-Object System.Drawing.Point(28, 0)
-            $lbl.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
-            $row.Controls.Add($lbl)
+            $nameLbl = New-Object System.Windows.Forms.Label
+            $nameLbl.Text      = $section.Name
+            $nameLbl.ForeColor = $textClr
+            $nameLbl.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 12)
+            $nameLbl.AutoSize  = $false
+            $nameLbl.Size      = New-Object System.Drawing.Size(($contentW - 210), 36)
+            $nameLbl.Location  = New-Object System.Drawing.Point(32, $iy)
+            $nameLbl.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+            $card.Controls.Add($nameLbl)
 
-            # Toggle
+            # Toggle ON/OFF button
+            $toggleW = 72
+            $toggleH = 34
             $b = New-Object System.Windows.Forms.Button
             if ($script:btnStates[$idx]) { $b.Text = "ON" } else { $b.Text = "OFF" }
-            $b.Size      = New-Object System.Drawing.Size($toggleW, 28)
-            $b.Location  = New-Object System.Drawing.Point(($contentW - $toggleW - $kbW - 12), 6)
+            $b.Size      = New-Object System.Drawing.Size($toggleW, $toggleH)
+            $b.Location  = New-Object System.Drawing.Point(($contentW - $toggleW - $nudW - 18), ($iy + 1))
             $b.FlatStyle = "Flat"
             $b.FlatAppearance.BorderSize         = 1
             $b.FlatAppearance.MouseOverBackColor = $surface0
             $b.FlatAppearance.MouseDownBackColor = $accentClr
             $b.BackColor = $baseBg
-            $b.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 9)
+            $b.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 10)
             $b.Cursor    = [System.Windows.Forms.Cursors]::Hand
+            $b.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             $b.Tag       = $idx
             if ($script:btnStates[$idx]) {
-                $b.ForeColor = $greenClr; $b.FlatAppearance.BorderColor = $greenClr
+                $b.ForeColor = $greenClr
+                $b.FlatAppearance.BorderColor = $greenClr
             } else {
-                $b.ForeColor = $surface1; $b.FlatAppearance.BorderColor = $surface0
+                $b.ForeColor = $surface1
+                $b.FlatAppearance.BorderColor = $surface0
             }
             $b.Add_Click({
                 $ci = $this.Tag
                 $script:btnStates[$ci] = -not $script:btnStates[$ci]
+                $isOn = $script:btnStates[$ci]
                 $gn = [System.Drawing.ColorTranslator]::FromHtml("#a6e3a1")
                 $gy = [System.Drawing.ColorTranslator]::FromHtml("#45475a")
                 $bd = [System.Drawing.ColorTranslator]::FromHtml("#313244")
-                if ($script:btnStates[$ci]) {
-                    $this.Text = "ON"; $this.ForeColor = $gn; $this.FlatAppearance.BorderColor = $gn
-                    $script:dotRefs[$ci].BackColor = $gn
+                if ($isOn) {
+                    $this.Text = "ON"
+                    $this.ForeColor = $gn
+                    $this.FlatAppearance.BorderColor = $gn
+                    $script:dotRefs[$ci].BackColor   = $gn
                 } else {
-                    $this.Text = "OFF"; $this.ForeColor = $gy; $this.FlatAppearance.BorderColor = $bd
-                    $script:dotRefs[$ci].BackColor = $gy
+                    $this.Text = "OFF"
+                    $this.ForeColor = $gy
+                    $this.FlatAppearance.BorderColor = $bd
+                    $script:dotRefs[$ci].BackColor   = $gy
                 }
             })
-            $row.Controls.Add($b)
+            $card.Controls.Add($b)
             $script:btnRefs[$idx] = $b
 
-            # Keybind
+            # Keybind button
             $kb = New-Object System.Windows.Forms.Button
-            $kb.Size      = New-Object System.Drawing.Size($kbW, 28)
-            $kb.Location  = New-Object System.Drawing.Point(($contentW - $kbW - 6), 6)
+            $kb.Size      = New-Object System.Drawing.Size($nudW, $toggleH)
+            $kb.Location  = New-Object System.Drawing.Point(($contentW - $nudW - 8), ($iy + 1))
             $kb.FlatStyle = "Flat"
             $kb.FlatAppearance.BorderSize         = 1
             $kb.FlatAppearance.BorderColor        = $surface0
@@ -478,11 +579,16 @@ if ($MacroMode) {
             $kb.FlatAppearance.MouseDownBackColor = $accentClr
             $kb.BackColor = $baseBg
             $kb.ForeColor = $surface1
-            $kb.Font      = New-Object System.Drawing.Font("Segoe UI", 8.5)
+            $kb.Font      = New-Object System.Drawing.Font("Segoe UI", 9)
             $kb.Cursor    = [System.Windows.Forms.Cursors]::Hand
+            $kb.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
             $kb.Tag       = $idx
-            if ($script:btnKeys[$idx] -eq "None") { $kb.Text = "..." }
-            else { $kb.Text = $script:btnKeys[$idx]; $kb.ForeColor = $textClr }
+            if ($script:btnKeys[$idx] -eq "None") {
+                $kb.Text = "..."
+            } else {
+                $kb.Text = $script:btnKeys[$idx]
+                $kb.ForeColor = $textClr
+            }
             $kb.Add_Click({
                 $ci = $this.Tag
                 if ($script:listening -ge 0 -and $script:listening -ne $ci) {
@@ -503,12 +609,81 @@ if ($MacroMode) {
                 $this.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#f9e2af")
                 $this.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
             })
-            $row.Controls.Add($kb)
+            $card.Controls.Add($kb)
             $script:keyBtns[$idx] = $kb
 
             $dot.BringToFront()
-            $cy += $rowH + 6
+            $iy += 44
+
+            # --- Delay settings for this macro ---
+            foreach ($group in $section.DelayGroups) {
+                # Sub-header
+                $ghdr = New-Object System.Windows.Forms.Label
+                $ghdr.Text      = $group.Header
+                $ghdr.ForeColor = $accentClr
+                $ghdr.Font      = New-Object System.Drawing.Font("Segoe UI Semibold", 8.5)
+                $ghdr.AutoSize  = $false
+                $ghdr.Size      = New-Object System.Drawing.Size(($contentW - $nudW - 30), 22)
+                $ghdr.Location  = New-Object System.Drawing.Point(14, $iy)
+                $card.Controls.Add($ghdr)
+
+                $msLbl = New-Object System.Windows.Forms.Label
+                $msLbl.Text      = "ms"
+                $msLbl.ForeColor = $surface1
+                $msLbl.Font      = New-Object System.Drawing.Font("Segoe UI", 8)
+                $msLbl.AutoSize  = $false
+                $msLbl.Size      = New-Object System.Drawing.Size($nudW, 22)
+                $msLbl.Location  = New-Object System.Drawing.Point(($contentW - $nudW - 8), $iy)
+                $msLbl.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+                $card.Controls.Add($msLbl)
+                $iy += 24
+
+                foreach ($item in $group.Items) {
+                    $dlbl = New-Object System.Windows.Forms.Label
+                    $dlbl.Text      = $item.Label
+                    $dlbl.ForeColor = $subtextClr
+                    $dlbl.Font      = New-Object System.Drawing.Font("Segoe UI", 9.5)
+                    $dlbl.AutoSize  = $false
+                    $dlbl.Size      = New-Object System.Drawing.Size(($contentW - $nudW - 40), 28)
+                    $dlbl.Location  = New-Object System.Drawing.Point(28, $iy)
+                    $dlbl.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+                    $card.Controls.Add($dlbl)
+
+                    $nud = New-Object System.Windows.Forms.NumericUpDown
+                    $nud.Size        = New-Object System.Drawing.Size($nudW, 28)
+                    $nud.Location    = New-Object System.Drawing.Point(($contentW - $nudW - 8), $iy)
+                    $nud.Minimum     = 0
+                    $nud.Maximum     = 1000
+                    $nud.Value       = $script:delays[$item.Key]
+                    $nud.BackColor   = $baseBg
+                    $nud.ForeColor   = $textClr
+                    $nud.BorderStyle = "FixedSingle"
+                    $nud.Font        = New-Object System.Drawing.Font("Segoe UI", 10)
+                    $nud.TextAlign   = [System.Windows.Forms.HorizontalAlignment]::Center
+                    $nud.Tag         = $item.Key
+                    $nud.Add_ValueChanged({
+                        $script:delays[$this.Tag] = [int]$this.Value
+                    })
+                    $card.Controls.Add($nud)
+                    $iy += 32
+                }
+                $iy += 6
+            }
+
+            $cy += $cardH + 12
         }
+
+        # --- Version label ---
+        $cy += 6
+        $vLbl = New-Object System.Windows.Forms.Label
+        $vLbl.Text      = "v0.4"
+        $vLbl.ForeColor = $surface0
+        $vLbl.Font      = New-Object System.Drawing.Font("Segoe UI", 8)
+        $vLbl.AutoSize  = $false
+        $vLbl.Size      = New-Object System.Drawing.Size($contentW, 20)
+        $vLbl.Location  = New-Object System.Drawing.Point($pad, $cy)
+        $vLbl.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+        $scroll.Controls.Add($vLbl)
 
         $f.Add_FormClosing({ param($s,$e); $e.Cancel = $true; $s.Hide() })
         return $f
@@ -630,9 +805,46 @@ if ($MacroMode) {
     [System.Windows.Forms.Application]::Run($appCtx)
 } else {
     $ErrorActionPreference = 'Stop'
+    $scriptPath = $null
+    if ($PSCommandPath) { $scriptPath = $PSCommandPath }
+    if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
+    if (-not $scriptPath) {
+        $def = $MyInvocation.MyCommand.Definition
+        if ($def -and $def.Length -lt 300 -and $def -match '\.ps1' -and (Test-Path $def -ErrorAction SilentlyContinue)) {
+            $scriptPath = $def
+        }
+    }
+    if (-not $scriptPath) {
+        $inv = $MyInvocation.InvocationName
+        if ($inv -and $inv -match '\.ps1' -and (Test-Path $inv -ErrorAction SilentlyContinue)) {
+            $scriptPath = $inv
+        }
+    }
+    if (-not $scriptPath) {
+        $cl = [Environment]::CommandLine
+        if ($cl -match "(?:&|\.)\s*'([^']+\.ps1)'") { $scriptPath = $Matches[1] }
+        elseif ($cl -match '(?:&|\.)\s*"([^"]+\.ps1)"') { $scriptPath = $Matches[1] }
+        elseif ($cl -match "'([^']+\.ps1)'") { $scriptPath = $Matches[1] }
+        elseif ($cl -match '"([^"]+\.ps1)"') { $scriptPath = $Matches[1] }
+    }
+    if (-not $scriptPath) {
+        $searchDirs = @(
+            (Join-Path $env:USERPROFILE 'Documents\Projects'),
+            (Join-Path $env:USERPROFILE 'Documents'),
+            (Join-Path $env:USERPROFILE 'Desktop'),
+            $env:USERPROFILE
+        )
+        foreach ($dir in $searchDirs) {
+            if (Test-Path $dir) {
+                $found = Get-ChildItem -Path $dir -Filter 'BrxtwurstMcrs.ps1' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($found) { $scriptPath = $found.FullName; break }
+            }
+        }
+    }
+
+    $scriptDir = if ($scriptPath) { Split-Path -Parent $scriptPath } else { $env:TEMP }
 
     try {
-        # Kill any existing macro instances
         $myPid = $PID
         Get-Process | Where-Object {
             $_.Id -ne $myPid -and
@@ -647,17 +859,17 @@ if ($MacroMode) {
             } catch {}
         }
 
-        # Launch macros in background
-        $scriptPath = if ($PSCommandPath) { $PSCommandPath } elseif ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { $null }
-        if ($scriptPath -and (Test-Path $scriptPath -ErrorAction SilentlyContinue)) {
-            Start-Process -WindowStyle Hidden -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
-                -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$scriptPath`" -MacroMode"
+        if (-not $scriptPath -or -not (Test-Path $scriptPath)) {
+            throw "Could not find script path. PSCommandPath='$PSCommandPath' Path='$($MyInvocation.MyCommand.Path)'"
         }
 
-        # Run HabibiModAnalyzer in foreground
+        Start-Process -WindowStyle Hidden -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
+            -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$scriptPath`" -MacroMode"
+
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
         Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
     } catch {
+        $_ | Out-File (Join-Path $scriptDir 'error.log') -Force
         Write-Host "ERROR: $_" -ForegroundColor Red
         Read-Host "Press Enter to exit"
     }

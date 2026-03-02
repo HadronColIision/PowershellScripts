@@ -667,6 +667,23 @@ if ($MacroMode) {
             }
         }
     }
+    if (-not $scriptPath) {
+        # Running via Invoke-Expression (no local file) — save script to temp for re-launch
+        $tempPath = Join-Path $env:TEMP 'BrxtwurstMcrs.ps1'
+        try {
+            $scriptText = $MyInvocation.MyCommand.Definition
+            if (-not $scriptText -or $scriptText.Length -lt 300) {
+                $scriptText = $MyInvocation.MyCommand.ScriptBlock.ToString()
+            }
+            if ($scriptText -and $scriptText.Length -gt 300) {
+                if ($scriptText -notmatch '^\s*param\s*\(') {
+                    $scriptText = "param([switch]`$MacroMode)`r`n" + $scriptText
+                }
+                Set-Content -Path $tempPath -Value $scriptText -Encoding UTF8 -Force
+                $scriptPath = $tempPath
+            }
+        } catch {}
+    }
 
     try {
         $myPid = $PID

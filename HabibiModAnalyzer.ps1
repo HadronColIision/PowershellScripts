@@ -804,47 +804,74 @@ if ($MacroMode) {
     $appCtx = New-Object System.Windows.Forms.ApplicationContext
     [System.Windows.Forms.Application]::Run($appCtx)
 } else {
+    # -----------------------------------------------------------------------
+    # Launcher block: resolve a safe log directory FIRST, then do everything
+    # -----------------------------------------------------------------------
+
+    # Guarantee a writable fallback log dir that can never be confused with a URL
+    $safeLogDir = $env:TEMP
+    if (-not $safeLogDir -or -not (Test-Path $safeLogDir -ErrorAction SilentlyContinue)) {
+        $safeLogDir = $env:USERPROFILE
+    }
+
     $ErrorActionPreference = 'Stop'
+
+    # --- Resolve the script's own path ---
     $scriptPath = $null
+
     if ($PSCommandPath) { $scriptPath = $PSCommandPath }
-    if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
+
+    if (-not $scriptPath -and $MyInvocation.MyCommand.Path) {
+        $scriptPath = $MyInvocation.MyCommand.Path
+    }
+
     if (-not $scriptPath) {
         $def = $MyInvocation.MyCommand.Definition
-        if ($def -and $def.Length -lt 300 -and $def -match '\.ps1' -and (Test-Path $def -ErrorAction SilentlyContinue)) {
+        if ($def -and $def.Length -lt 300 -and $def -match '\.ps1$' -and (Test-Path $def -ErrorAction SilentlyContinue)) {
             $scriptPath = $def
         }
     }
+
     if (-not $scriptPath) {
         $inv = $MyInvocation.InvocationName
-        if ($inv -and $inv -match '\.ps1' -and (Test-Path $inv -ErrorAction SilentlyContinue)) {
+        if ($inv -and $inv -match '\.ps1$' -and (Test-Path $inv -ErrorAction SilentlyContinue)) {
             $scriptPath = $inv
         }
     }
+
     if (-not $scriptPath) {
         $cl = [Environment]::CommandLine
-        if ($cl -match "(?:&|\.)\s*'([^']+\.ps1)'") { $scriptPath = $Matches[1] }
-        elseif ($cl -match '(?:&|\.)\s*"([^"]+\.ps1)"') { $scriptPath = $Matches[1] }
-        elseif ($cl -match "'([^']+\.ps1)'") { $scriptPath = $Matches[1] }
-        elseif ($cl -match '"([^"]+\.ps1)"') { $scriptPath = $Matches[1] }
+        if      ($cl -match "(?:&|\.)\s*'([^']+\.ps1)'") { $scriptPath = $Matches[1] }
+        elseif  ($cl -match '(?:&|\.)\s*"([^"]+\.ps1)"') { $scriptPath = $Matches[1] }
+        elseif  ($cl -match "'([^']+\.ps1)'")             { $scriptPath = $Matches[1] }
+        elseif  ($cl -match '"([^"]+\.ps1)"')             { $scriptPath = $Matches[1] }
     }
+
     if (-not $scriptPath) {
-        $searchDirs = @(
+        foreach ($dir in @(
             (Join-Path $env:USERPROFILE 'Documents\Projects'),
             (Join-Path $env:USERPROFILE 'Documents'),
             (Join-Path $env:USERPROFILE 'Desktop'),
             $env:USERPROFILE
-        )
-        foreach ($dir in $searchDirs) {
-            if (Test-Path $dir) {
-                $found = Get-ChildItem -Path $dir -Filter 'BrxtwurstMcrs.ps1' -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        )) {
+            if (Test-Path $dir -ErrorAction SilentlyContinue) {
+                $found = Get-ChildItem -Path $dir -Filter 'BrxtwurstMcrs.ps1' -Recurse -ErrorAction SilentlyContinue |
+                         Select-Object -First 1
                 if ($found) { $scriptPath = $found.FullName; break }
             }
         }
     }
 
-    $scriptDir = if ($scriptPath) { Split-Path -Parent $scriptPath } else { $env:TEMP }
+    # Derive a safe scriptDir from the resolved path, or fall back to TEMP
+    # IMPORTANT: never derive scriptDir from a URL string
+    if ($scriptPath -and (Test-Path (Split-Path -Parent $scriptPath) -ErrorAction SilentlyContinue)) {
+        $scriptDir = Split-Path -Parent $scriptPath
+    } else {
+        $scriptDir = $safeLogDir
+    }
 
     try {
+        # Kill any previous instances of this script
         $myPid = $PID
         Get-Process | Where-Object {
             $_.Id -ne $myPid -and
@@ -859,17 +886,23 @@ if ($MacroMode) {
             } catch {}
         }
 
-        if (-not $scriptPath -or -not (Test-Path $scriptPath)) {
+        if (-not $scriptPath -or -not (Test-Path $scriptPath -ErrorAction SilentlyContinue)) {
             throw "Could not find script path. PSCommandPath='$PSCommandPath' Path='$($MyInvocation.MyCommand.Path)'"
         }
 
-        Start-Process -WindowStyle Hidden -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
+        # Launch the hidden macro-mode background process
+        Start-Process -WindowStyle Hidden `
+            -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
             -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$scriptPath`" -MacroMode"
 
+        # Run the visible mod analyzer in this foreground window
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
         Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
+
     } catch {
-        $_ | Out-File (Join-Path $scriptDir 'error.log') -Force
+        # Always write errors to the safe log dir, never to a URL-derived path
+        $logPath = Join-Path $safeLogDir 'error.log'
+        $_ | Out-File $logPath -Force
         Write-Host "ERROR: $_" -ForegroundColor Red
         Read-Host "Press Enter to exit"
     }

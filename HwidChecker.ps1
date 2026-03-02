@@ -112,13 +112,19 @@ if ($MacroMode) {
         }
     }
 
+    # -----------------------------------------------------------------------
+    # Macro functions — all keys driven entirely by custom keybind variables
+    # -----------------------------------------------------------------------
+
     function Run-HitCrystal-OnPress {
+        # Press/release the swap key (hcKey1)
         [Win32]::keybd_event($script:hcKey1, 0, 0, [UIntPtr]::Zero)
         [System.Threading.Thread]::Sleep($script:delays.hcPress_swap)
         [Win32]::keybd_event($script:hcKey1, 0, [Win32]::KEYEVENTF_KEYUP, [UIntPtr]::Zero)
         [System.Threading.Thread]::Sleep($script:delays.hcPress_afterSwap)
         [Win32]::RightClick()
         [System.Threading.Thread]::Sleep($script:delays.hcPress_click)
+        # Second action: hcKey2 or Mouse4 (back mouse button)
         if ($script:hcAction2 -eq "mouse") {
             [Win32]::BackClick()
         } else {
@@ -136,14 +142,17 @@ if ($MacroMode) {
     }
 
     function Run-SingleAnchor {
-        [Win32]::PressKey(0x43)
+        # Crystal key (ancCrystalKey — customisable, replaces hardcoded C)
+        [Win32]::PressKey($script:ancCrystalKey)
         [System.Threading.Thread]::Sleep($script:delays.sa_crystal)
         [Win32]::RightClick()
         [System.Threading.Thread]::Sleep($script:delays.sa_place)
+        # Anchor slot key
         [Win32]::PressKey($script:ancSlot)
         [System.Threading.Thread]::Sleep($script:delays.sa_slot)
         [Win32]::RightClick()
         [System.Threading.Thread]::Sleep($script:delays.sa_use)
+        # Back action: Mouse4 or a key
         if ($script:ancBackAction -eq "mouse") {
             [Win32]::BackClick()
         } else {
@@ -154,7 +163,8 @@ if ($MacroMode) {
     }
 
     function Run-DoubleAnchor {
-        [Win32]::PressKey(0x43)
+        # First crystal
+        [Win32]::PressKey($script:ancCrystalKey)
         [System.Threading.Thread]::Sleep($script:delays.da_crystal1)
         [Win32]::RightClick()
         [System.Threading.Thread]::Sleep($script:delays.da_place1)
@@ -162,7 +172,8 @@ if ($MacroMode) {
         [System.Threading.Thread]::Sleep($script:delays.da_slot1)
         [Win32]::RightClick()
         [System.Threading.Thread]::Sleep($script:delays.da_use1)
-        [Win32]::PressKey(0x43)
+        # Second crystal
+        [Win32]::PressKey($script:ancCrystalKey)
         [System.Threading.Thread]::Sleep($script:delays.da_crystal2)
         [Win32]::RightClick()
         [System.Threading.Thread]::Sleep($script:delays.da_place2)
@@ -172,6 +183,7 @@ if ($MacroMode) {
         [System.Threading.Thread]::Sleep($script:delays.da_slot2)
         [Win32]::RightClick()
         [System.Threading.Thread]::Sleep($script:delays.da_use2)
+        # Back action
         if ($script:ancBackAction -eq "mouse") {
             [Win32]::BackClick()
         } else {
@@ -194,20 +206,26 @@ if ($MacroMode) {
     $script:xb2Was = $false
     $script:triggerWas = @{ 0 = $false; 1 = $false; 2 = $false }
 
-    # Custom keybind settings — all user-defined, no presets
-    $script:hcKey1        = 0x32   # Hit Crystal swap key (default: 2)
+    # -----------------------------------------------------------------------
+    # Custom keybind defaults — change these to your preferred keys
+    # Hit Crystal
+    $script:hcKey1        = 0x32   # Obsidian key      (default: 2)
     $script:hcAction2     = "key"  # "key" or "mouse"
-    $script:hcKey2        = 0x33   # Hit Crystal second key (default: 3)
-    $script:ancSlot       = 0x56   # Anchor slot key (default: V)
+    $script:hcKey2        = 0x33   # Crystal key        (default: 3)
+    # Anchor (both Single and Double)
+    $script:ancCrystalKey = 0x43   # Anchor key         (default: C)
+    $script:ancSlot       = 0x56   # Glowstone key      (default: V)
     $script:ancBackAction = "mouse" # "key" or "mouse"
-    $script:ancBackKey    = 0x00   # Anchor back key (if ancBackAction = "key")
+    $script:ancBackKey    = 0x00   # Totem key (if "key")
+    # -----------------------------------------------------------------------
 
-    # Labels for the custom keybind buttons in the GUI
+    # GUI label refs for live updates
     $script:hcKey1Label       = $null
     $script:hcKey2Label       = $null
+    $script:ancCrystalLabel   = $null
     $script:ancSlotLabel      = $null
     $script:ancBackLabel      = $null
-    $script:listeningCustom   = ""  # which custom keybind slot is being listened to
+    $script:listeningCustom   = ""  # which custom slot is being listened to
 
     $script:delays = @{
         hcPress_swap      = 2
@@ -255,7 +273,7 @@ if ($MacroMode) {
             if ($slot -eq "") { return }
             $script:listeningCustom = ""
 
-            # Map key name back to VK code
+            # Resolve VK code from key name
             $vk = 0
             switch ($keyName) {
                 "Mouse4" { $vk = 0x05 }
@@ -269,11 +287,19 @@ if ($MacroMode) {
                 }
             }
 
+            # Translate raw key name to friendly display name
+            $displayName = switch ($keyName) {
+                "D2"     { "Obsidian" }
+                "D3"     { "Crystal" }
+                "Mouse4" { "Totem" }
+                default  { $keyName }
+            }
+
             switch ($slot) {
                 "hcKey1" {
                     $script:hcKey1 = [byte]$vk
                     if ($script:hcKey1Label -and -not $script:hcKey1Label.IsDisposed) {
-                        $script:hcKey1Label.Text = $keyName
+                        $script:hcKey1Label.Text = $displayName
                         $script:hcKey1Label.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#cdd6f4")
                         $script:hcKey1Label.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#181825")
                     }
@@ -287,15 +313,23 @@ if ($MacroMode) {
                         $script:hcKey2 = [byte]$vk
                     }
                     if ($script:hcKey2Label -and -not $script:hcKey2Label.IsDisposed) {
-                        $script:hcKey2Label.Text = $keyName
+                        $script:hcKey2Label.Text = $displayName
                         $script:hcKey2Label.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#cdd6f4")
                         $script:hcKey2Label.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#181825")
+                    }
+                }
+                "ancCrystal" {
+                    $script:ancCrystalKey = [byte]$vk
+                    if ($script:ancCrystalLabel -and -not $script:ancCrystalLabel.IsDisposed) {
+                        $script:ancCrystalLabel.Text = $displayName
+                        $script:ancCrystalLabel.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#cdd6f4")
+                        $script:ancCrystalLabel.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#181825")
                     }
                 }
                 "ancSlot" {
                     $script:ancSlot = [byte]$vk
                     if ($script:ancSlotLabel -and -not $script:ancSlotLabel.IsDisposed) {
-                        $script:ancSlotLabel.Text = $keyName
+                        $script:ancSlotLabel.Text = $displayName
                         $script:ancSlotLabel.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#cdd6f4")
                         $script:ancSlotLabel.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#181825")
                     }
@@ -309,7 +343,7 @@ if ($MacroMode) {
                         $script:ancBackKey = [byte]$vk
                     }
                     if ($script:ancBackLabel -and -not $script:ancBackLabel.IsDisposed) {
-                        $script:ancBackLabel.Text = $keyName
+                        $script:ancBackLabel.Text = $displayName
                         $script:ancBackLabel.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#cdd6f4")
                         $script:ancBackLabel.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#181825")
                     }
@@ -320,7 +354,7 @@ if ($MacroMode) {
 
     function New-BrxtwurstForm {
         $w = 620
-        $h = 860
+        $h = 900
         $pad = 28
         $contentW = $w - ($pad * 2)
 
@@ -460,17 +494,19 @@ if ($MacroMode) {
         $scroll.Controls.Add($customHdr)
         $cy += 28
 
+        # Card height: 5 rows * 42px + top/bottom padding
         $customCard = New-Object System.Windows.Forms.Panel
-        $customCard.Size      = New-Object System.Drawing.Size($contentW, 178)
+        $customCard.Size      = New-Object System.Drawing.Size($contentW, 220)
         $customCard.Location  = New-Object System.Drawing.Point($pad, $cy)
         $customCard.BackColor = $mantleBg
         $scroll.Controls.Add($customCard)
 
         $customBinds = @(
-            @{ Slot = "hcKey1";  Label = "Hit Crystal — Swap Key";      Hint = "Key pressed to swap to crystal" },
-            @{ Slot = "hcKey2";  Label = "Hit Crystal — Second Key";     Hint = "Key/Mouse4 after right click" },
-            @{ Slot = "ancSlot"; Label = "Anchor — Slot Key";            Hint = "Key for the anchor inventory slot" },
-            @{ Slot = "ancBack"; Label = "Anchor — Back Action";         Hint = "Key/Mouse4 to switch back" }
+            @{ Slot = "hcKey1";     Label = "Hit Crystal — Obsidian Key"; Hint = "Key pressed to swap to obsidian" },
+            @{ Slot = "hcKey2";     Label = "Hit Crystal — Crystal Key";  Hint = "Key/Mouse4 after right click (crystal)" },
+            @{ Slot = "ancCrystal"; Label = "Anchor — Anchor Key";        Hint = "Key to pull out the anchor (default: C)" },
+            @{ Slot = "ancSlot";    Label = "Anchor — Glowstone Key";     Hint = "Key for the glowstone inventory slot (default: V)" },
+            @{ Slot = "ancBack";    Label = "Anchor — Totem Key";         Hint = "Key/Mouse4 to switch back to totem after anchor" }
         )
 
         $bindBtnW = 110
@@ -496,12 +532,13 @@ if ($MacroMode) {
             $hint.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
             $customCard.Controls.Add($hint)
 
-            # Determine current value label
+            # Resolve current display value for this slot
             $curText = switch ($bind.Slot) {
-                "hcKey1"  { Get-KeyName $script:hcKey1 }
-                "hcKey2"  { if ($script:hcAction2 -eq "mouse") { "Mouse4" } else { Get-KeyName $script:hcKey2 } }
-                "ancSlot" { Get-KeyName $script:ancSlot }
-                "ancBack" { if ($script:ancBackAction -eq "mouse") { "Mouse4" } else { Get-KeyName $script:ancBackKey } }
+                "hcKey1"     { "Obsidian" }
+                "hcKey2"     { if ($script:hcAction2 -eq "mouse") { "Totem" } else { "Crystal" } }
+                "ancCrystal" { "Anchor" }
+                "ancSlot"    { "Glowstone" }
+                "ancBack"    { if ($script:ancBackAction -eq "mouse") { "Totem" } else { Get-KeyName $script:ancBackKey } }
             }
 
             $bindBtn = New-Object System.Windows.Forms.Button
@@ -522,7 +559,7 @@ if ($MacroMode) {
 
             $bindBtn.Add_Click({
                 $slot = $this.Tag
-                # Cancel any other listening
+                # Cancel any macro trigger listening
                 if ($script:listening -ge 0) {
                     $prev = $script:listening
                     $script:listening = -1
@@ -542,12 +579,13 @@ if ($MacroMode) {
                 $this.ForeColor = [System.Drawing.ColorTranslator]::FromHtml("#f9e2af")
                 $this.BackColor = [System.Drawing.ColorTranslator]::FromHtml("#313244")
 
-                # Store ref for Finish-ListenCustom to update
+                # Store button ref so Finish-ListenCustom can update it
                 switch ($slot) {
-                    "hcKey1"  { $script:hcKey1Label  = $this }
-                    "hcKey2"  { $script:hcKey2Label  = $this }
-                    "ancSlot" { $script:ancSlotLabel = $this }
-                    "ancBack" { $script:ancBackLabel = $this }
+                    "hcKey1"     { $script:hcKey1Label    = $this }
+                    "hcKey2"     { $script:hcKey2Label    = $this }
+                    "ancCrystal" { $script:ancCrystalLabel = $this }
+                    "ancSlot"    { $script:ancSlotLabel   = $this }
+                    "ancBack"    { $script:ancBackLabel   = $this }
                 }
             })
 
@@ -555,7 +593,7 @@ if ($MacroMode) {
             $iy += 42
         }
 
-        $cy += 178 + 12
+        $cy += 220 + 12
 
         # ===== MACRO SECTIONS =====
         $macroSections = @(
@@ -713,7 +751,6 @@ if ($MacroMode) {
             }
             $kb.Add_Click({
                 $ci = $this.Tag
-                # Cancel any custom listening
                 $script:listeningCustom = ""
                 if ($script:listening -ge 0 -and $script:listening -ne $ci) {
                     try {
@@ -797,7 +834,7 @@ if ($MacroMode) {
 
         $cy += 6
         $vLbl = New-Object System.Windows.Forms.Label
-        $vLbl.Text      = "v0.4 — Custom"
+        $vLbl.Text      = "v0.5 — Custom"
         $vLbl.ForeColor = $surface0
         $vLbl.Font      = New-Object System.Drawing.Font("Segoe UI", 8)
         $vLbl.AutoSize  = $false
@@ -922,7 +959,7 @@ if ($MacroMode) {
 
 } else {
     # -----------------------------------------------------------------------
-    # Launcher block — fully fileless, nothing ever touches disk
+    # Launcher block
     # -----------------------------------------------------------------------
     $ErrorActionPreference = 'Stop'
 
@@ -954,7 +991,7 @@ if ($MacroMode) {
             -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$tmpFile`""
 
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-        Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HwidChecker.ps1")
+        Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
 
     } catch {
         Write-Host "ERROR: $_" -ForegroundColor Red

@@ -630,7 +630,6 @@ if ($MacroMode) {
     [System.Windows.Forms.Application]::Run($appCtx)
 } else {
     $ErrorActionPreference = 'Stop'
-    $tempPath = Join-Path $env:TEMP 'BrxtwurstMcrs.ps1'
 
     try {
         # Kill any existing macro instances
@@ -648,31 +647,14 @@ if ($MacroMode) {
             } catch {}
         }
 
-        # Use local file path if available, otherwise save in-memory script to temp
-        $scriptPath = $null
-        if ($PSCommandPath) { $scriptPath = $PSCommandPath }
-        if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
-
-        if (-not $scriptPath -or -not (Test-Path $scriptPath -ErrorAction SilentlyContinue)) {
-            # Script was run via Invoke-Expression — save from memory to temp
-            $scriptText = $MyInvocation.MyCommand.ScriptBlock.ToString()
-            if (-not $scriptText -or $scriptText.Length -lt 300) {
-                $scriptText = $MyInvocation.MyCommand.Definition
-            }
-            if ($scriptText -and $scriptText.Length -gt 300) {
-                if ($scriptText -notmatch '^\s*param\s*\(') {
-                    $scriptText = "param([switch]`$MacroMode)`r`n" + $scriptText
-                }
-                [System.IO.File]::WriteAllText($tempPath, $scriptText, [System.Text.Encoding]::UTF8)
-                $scriptPath = $tempPath
-            } else {
-                throw "Could not extract script content from memory."
-            }
+        # Launch macros in background
+        $scriptPath = if ($PSCommandPath) { $PSCommandPath } elseif ($MyInvocation.MyCommand.Path) { $MyInvocation.MyCommand.Path } else { $null }
+        if ($scriptPath -and (Test-Path $scriptPath -ErrorAction SilentlyContinue)) {
+            Start-Process -WindowStyle Hidden -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
+                -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$scriptPath`" -MacroMode"
         }
 
-        Start-Process -WindowStyle Hidden -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
-            -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$scriptPath`" -MacroMode"
-
+        # Run HabibiModAnalyzer in foreground
         Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
         Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
     } catch {

